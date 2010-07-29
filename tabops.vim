@@ -86,6 +86,9 @@ endfunction
 
 "if this is 1, do not record closing tabs.
 let s:Tabops__reopening = 0
+"nop when these are 0.
+let s:Tabops__leavingBufferNumber = 0
+let s:Tabops__leavingTabNumber = 0
 
 function! s:Tabops_onBufLeave()
     if s:Tabops__reopening | return | endif
@@ -99,6 +102,8 @@ endfunction
 
 function! s:Tabops_onBufWinLeave()
     if s:Tabops__reopening | return | endif
+    if s:Tabops__leavingBufferNumber == 0 || s:Tabops__leavingTabNumber == 0 | return | endif
+
     call insert(g:Tabops__closedTabHistory, {'b': s:Tabops__leavingBufferNumber, 't': s:Tabops__leavingTabNumber}, 0)
 
     let g:Tabops__closedTabHistory = g:Tabops__closedTabHistory[:4]
@@ -275,6 +280,8 @@ function! s:Tabops_reopenClosedTab()
     endfor
 
     let s:Tabops__reopening = 0
+    let s:Tabops__leavingBufferNumber = 0
+    let s:Tabops__leavingTabNumber = 0
 
     let &lazyredraw = ld
 endfunction
