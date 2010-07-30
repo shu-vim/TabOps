@@ -43,6 +43,10 @@
 "
 "   :TabopsUniq
 "       close duplicate tabs.
+"
+"   :TabopsOpenSiblings [LOADED]
+"       scan buffers that are in the same directory, and open them in tabs.
+"       with LOADED, only loaded buffers are read in tabs. (not globbed)
 
 if !exists('g:Tabops_prefix')
     let g:Tabops_prefix = '<Tab>'
@@ -77,6 +81,61 @@ command!  TabopsSortByBufnr      :call <SID>Tabops_sortByBufnr()
 command!  TabopsSortByLastChange :call <SID>Tabops_sortByLastChange()
 command!  TabopsReopenClosedTab  :call <SID>Tabops_reopenClosedTab()
 command!  TabopsUniq             :call <SID>Tabops_uniq()
+command!  -nargs=? -complete=custom,<SID>Tabops_openSiblings__complete  TabopsOpenSiblings  :call <SID>Tabops_openSiblings(<q-args>)
+
+
+function! s:Tabops_openSiblings(arg)
+    let ld = &lazyredraw
+    let &lazyredraw = 1
+    let s:Tabops__reopening = 1
+
+    tabonly
+
+    let curr = bufnr('%')
+    let path = expand('%:p:h')
+
+    " open
+    execute 'buffer ' . curr
+    for b in range(1, bufnr('$'))
+        let bpath = expand('#' . b . ':p:h')
+
+        if buflisted(b) && path == bpath && curr != b
+            "echom 'bpath: ' . bpath
+            tab split
+            execute 'buffer ' . b
+        endif
+    endfor
+
+    if a:arg == ''
+        call s:Tabops_openSiblings__doGLOB()
+    endif
+
+    call s:Tabops__goto(1)
+    call s:Tabops_uniq()
+    call s:Tabops_sortByPath()
+
+    let s:Tabops__reopening = 0
+    let &lazyredraw = ld
+endfunction
+
+function! s:Tabops_openSiblings__complete(argLead, cmdLine, cursorPos)
+    return 'LOADED'
+endfunction
+
+function! s:Tabops_openSiblings__doGLOB()
+    let curr = bufnr('%')
+    let path = expand('%:p:h')
+
+    let files = split(glob(path.'/*'))
+
+    " open
+    for i in range(len(files))
+        if !isdirectory(files[i])
+            "echom 'tabedit ' . files[i]
+            execute 'tabedit ' . escape(files[i], ' ')
+        endif
+    endfor
+endfunction
 
 
 function! s:Tabops_onBufEnter()
@@ -143,6 +202,7 @@ endfunction
 
 function! s:Tabops_uniq()
     let tabs = []
+    let currtabnr = tabpagenr()
 
     " fillin each value
     for i in range(1, tabpagenr('$'))
@@ -157,6 +217,10 @@ function! s:Tabops_uniq()
     for i in range(tabpagenr('$'), 2, -1)
         if tabs[i - 2].value == tabs[i - 1].value
             let tabs[i - 1].dup = 1
+
+            if tabs[i - 1].nr == currtabnr
+                let currtabnr = tabs[i - 2].nr
+            endif
         endif
     endfor
 
@@ -172,6 +236,9 @@ function! s:Tabops_uniq()
             tabclose
         endif
     endfor
+
+    call s:Tabops__goto(currtabnr)
+
     let &lazyredraw = ld
 endfunction
 
@@ -263,7 +330,7 @@ endfunction
 function! s:Tabops__sortByHoge(Evalfunc, Cmpfunc)
     let tabs = []
 
-    let currtabidx = tabpagenr()
+    let currtabnr = tabpagenr()
 
     let ld = &lazyredraw
     let &lazyredraw = 1
@@ -282,7 +349,7 @@ function! s:Tabops__sortByHoge(Evalfunc, Cmpfunc)
     let desttabidx = 1
     for i in range(1, len(tabs))
         let elem = tabs[i - 1]
-        if elem.src == currtabidx
+        if elem.src == currtabnr
             let desttabidx = i
         endif
     endfor
