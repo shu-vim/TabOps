@@ -40,6 +40,9 @@
 "   :TabopsSortByLastChange
 "       sort tabs comparing their recently-changed timestamps.
 "       the most recent tab comes to left.
+"
+"   :TabopsUniq
+"       close duplicate tabs.
 
 if !exists('g:Tabops_prefix')
     let g:Tabops_prefix = '<Tab>'
@@ -61,17 +64,19 @@ augroup Tabops
     autocmd!
 
     "to setting key mappings
-    autocmd  BufEnter  * call <SID>Tabops_onBufEnter()
+    autocmd  BufEnter    * call <SID>Tabops_onBufEnter()
 
     "to handle closing a tab
-    autocmd  BufLeave  * call <SID>Tabops_onBufLeave()
-    autocmd  TabLeave  * call <SID>Tabops_onTabLeave()
-    autocmd  BufWinLeave  * call <SID>Tabops_onBufWinLeave()
+    autocmd  BufLeave    * call <SID>Tabops_onBufLeave()
+    autocmd  TabLeave    * call <SID>Tabops_onTabLeave()
+    autocmd  BufWinLeave * call <SID>Tabops_onBufWinLeave()
 augroup END
+
 command!  TabopsSortByPath       :call <SID>Tabops_sortByPath()
 command!  TabopsSortByBufnr      :call <SID>Tabops_sortByBufnr()
 command!  TabopsSortByLastChange :call <SID>Tabops_sortByLastChange()
 command!  TabopsReopenClosedTab  :call <SID>Tabops_reopenClosedTab()
+command!  TabopsUniq             :call <SID>Tabops_uniq()
 
 
 function! s:Tabops_onBufEnter()
@@ -116,20 +121,66 @@ function! s:Tabops__enableCtrlGoto()
 endfunction
 
 function! s:Tabops__enableNumberGoto()
-    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."1  :call \<SID>Tabops__goto(0)<CR>"
-    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."2  :call \<SID>Tabops__goto(1)<CR>"
-    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."3  :call \<SID>Tabops__goto(2)<CR>"
-    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."4  :call \<SID>Tabops__goto(3)<CR>"
-    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."5  :call \<SID>Tabops__goto(4)<CR>"
-    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."6  :call \<SID>Tabops__goto(5)<CR>"
-    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."7  :call \<SID>Tabops__goto(6)<CR>"
-    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."8  :call \<SID>Tabops__goto(7)<CR>"
+    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."1  :call \<SID>Tabops__goto(1)<CR>"
+    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."2  :call \<SID>Tabops__goto(2)<CR>"
+    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."3  :call \<SID>Tabops__goto(3)<CR>"
+    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."4  :call \<SID>Tabops__goto(4)<CR>"
+    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."5  :call \<SID>Tabops__goto(5)<CR>"
+    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."6  :call \<SID>Tabops__goto(6)<CR>"
+    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."7  :call \<SID>Tabops__goto(7)<CR>"
+    execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."8  :call \<SID>Tabops__goto(8)<CR>"
     execute 'noremap  <buffer><silent>  '.g:Tabops_prefix.'9  :tablast<CR>'
 endfunction
 
 function! s:Tabops__enableMove()
     execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."l  :call \<SID>Tabops__swapNext()<CR>"
     execute 'noremap  <buffer><silent>  '.g:Tabops_prefix."h  :call \<SID>Tabops__swapPrev()<CR>"
+endfunction
+
+"
+" uniq-ing
+"
+
+function! s:Tabops_uniq()
+    let tabs = []
+
+    " fillin each value
+    for i in range(1, tabpagenr('$'))
+        let value = s:Tabops_sortByBufnr__Evalfunc(i)
+        call extend(tabs, [{'nr':i, 'value':value, 'dup':0}])
+    endfor
+
+    " sort by bufnr
+    call sort(tabs, 's:Tabops_uniq__sortByBufnr')
+
+    " find duplicates & mark latter ones
+    for i in range(tabpagenr('$'), 2, -1)
+        if tabs[i - 2].value == tabs[i - 1].value
+            let tabs[i - 1].dup = 1
+        endif
+    endfor
+
+    " re-sort by tabnr
+    call sort(tabs, 's:Tabops_uniq__sortByTabnr')
+
+    " close tabs
+    let ld = &lazyredraw
+    let &lazyredraw = 1
+    for i in range(tabpagenr('$'), 1, -1)
+        if tabs[i - 1].dup
+            call s:Tabops__goto(tabs[i - 1].nr)
+            tabclose
+        endif
+    endfor
+    let &lazyredraw = ld
+endfunction
+
+function! s:Tabops_uniq__sortByBufnr(v1, v2)
+    return (a:v1.value . ':' . a:v1.nr) == (a:v2.value . ':' . a:v2.nr) ? 0 : (a:v1.value . ':' . a:v1.nr) > (a:v2.value . ':' . a:v2.nr) ? 1 : -1
+endfunction
+
+function! s:Tabops_uniq__sortByTabnr(v1, v2)
+    return a:v1.nr == a:v2.nr ? 0 : a:v1.nr > a:v2.nr ? 1 : -1
 endfunction
 
 
@@ -155,7 +206,7 @@ function! s:Tabops_sortByLastChange()
 endfunction
 
 function! s:Tabops_sortByLastChange__Evalfunc(tabidx)
-    call s:Tabops__goto(a:tabidx - 1)
+    call s:Tabops__goto(a:tabidx)
     "let currbufnr = bufnr('%')
 
     redir => ul_as_str
@@ -210,7 +261,7 @@ endfunction
 
 
 function! s:Tabops__sortByHoge(Evalfunc, Cmpfunc)
-    let sortTable = []
+    let tabs = []
 
     let currtabidx = tabpagenr()
 
@@ -220,37 +271,37 @@ function! s:Tabops__sortByHoge(Evalfunc, Cmpfunc)
     "fillin each values
     for i in range(1, tabpagenr('$'))
         let value = a:Evalfunc(i)
-        call extend(sortTable, [{'src':i, 'value':value}])
+        call extend(tabs, [{'src':i, 'value':value}])
         "echom i-1.'  src: '.i.', value: '.value
     endfor
 
     "sort
-    call sort(sortTable, a:Cmpfunc)
+    call sort(tabs, a:Cmpfunc)
 
     "where should i goto, after moving
     let desttabidx = 1
-    for i in range(1, len(sortTable))
-        let elem = sortTable[i - 1]
+    for i in range(1, len(tabs))
+        let elem = tabs[i - 1]
         if elem.src == currtabidx
             let desttabidx = i
         endif
     endfor
 
     "move
-    for i in range(1, len(sortTable))
-        let elem = sortTable[i - 1]
+    for i in range(1, len(tabs))
+        let elem = tabs[i - 1]
         if i != elem.src
-            call s:Tabops__goto(elem.src - 1)
+            call s:Tabops__goto(elem.src)
             execute 'tabmove ' . string(i - 1)
-            for j in range(i + 1, len(sortTable))
-                if elem.src >= sortTable[j - 1].src
-                    let sortTable[j - 1].src = sortTable[j - 1].src + 1
+            for j in range(i + 1, len(tabs))
+                if elem.src >= tabs[j - 1].src
+                    let tabs[j - 1].src = tabs[j - 1].src + 1
                 endif
             endfor
         endif
     endfor
 
-    call s:Tabops__goto(desttabidx - 1)
+    call s:Tabops__goto(desttabidx)
 
     let &lazyredraw = ld
 endfunction
@@ -292,19 +343,7 @@ endfunction
 "
 
 function! s:Tabops__goto(tabindex)
-    " return if a:tabindex is invalid
-    if a:tabindex >= tabpagenr('$') | return | endif
-
-    let ld = &lazyredraw
-    let &lazyredraw = 1
-
-    tabfirst
-    let i = 0
-    for i in range(1, a:tabindex)
-        tabnext
-    endfor
-
-    let &lazyredraw = ld
+    silent execute 'tabnext ' . string(a:tabindex)
 endfunction
 
 
