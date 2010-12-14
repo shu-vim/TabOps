@@ -13,6 +13,8 @@
 "   2. (optional) let g:Tabops_use??? variables 0 if you want to disable some features.
 "   3. start editing
 "
+"   X. execute :Tabops command with some parameters (see Feature section)
+"
 " Feature:
 "
 "   * the default prefix is <Tab>
@@ -31,29 +33,29 @@
 "       {prefix}l: swap the current tab with the right one.
 "       {prefix}h: swap the cerrent tab with the left one.
 "
-"   :TabopsSortByPath
-"       sorts tabs comparing their paths.
 "
-"   :TabopsSortByBufnr
-"       sorts tabs comparing their internal numbers.
+"   :Tabops [Close | Open | ...]
+"       Close
+"           Right
+"           Left
+"               closes right/left tabs except the current tab.
+"       Open
+"           Siblings [LOADED]
+"               scans buffers that are in the same directory, and open them in tabs.
+"               with LOADED, only loaded buffers are read in tabs. (not globbed)
+"           WndInNewTab
+"               (in splitted window) closes the current window and opens it in new tab.
+"       Sort
+"           ByPath
+"               sorts tabs comparing their paths.
+"           ByBufnr
+"               sorts tabs comparing their internal numbers.
+"           ByLastChange
+"               sorts tabs comparing their recently-changed timestamps.
+"               the most recent tab comes to left.
+"       Uniq
+"           closes duplicate tabs.
 "
-"   :TabopsSortByLastChange
-"       sorts tabs comparing their recently-changed timestamps.
-"       the most recent tab comes to left.
-"
-"   :TabopsUniq
-"       closes duplicate tabs.
-"
-"   :TabopsCloseRight
-"   :TabopsCloseLeft
-"       closes right/left tabs except a current tab.
-"
-"   :TabopsOpenSiblings [LOADED]
-"       scans buffers that are in the same directory, and open them in tabs.
-"       with LOADED, only loaded buffers are read in tabs. (not globbed)
-"
-"   :TabopsOpenWndInNewTab
-"       (in splitted window) closes the current window and opens it in new tab.
 
 if !exists('g:Tabops_prefix')
     let g:Tabops_prefix = '<Tab>'
