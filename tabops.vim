@@ -51,6 +51,9 @@
 "   :TabopsOpenSiblings [LOADED]
 "       scans buffers that are in the same directory, and open them in tabs.
 "       with LOADED, only loaded buffers are read in tabs. (not globbed)
+"
+"   :TabopsOpenWndInNewTab
+"       (in splitted window) closes the current window and opens it in new tab.
 
 if !exists('g:Tabops_prefix')
     let g:Tabops_prefix = '<Tab>'
@@ -87,6 +90,7 @@ command!  TabopsReopenClosedTab  :call <SID>Tabops_reopenClosedTab()
 command!  TabopsUniq             :call <SID>Tabops_uniq()
 command!  TabopsCloseRight       :call <SID>Tabops_closeRight()
 command!  TabopsCloseLeft        :call <SID>Tabops_closeLeft()
+command!  TabopsOpenWndInNewTab     :call <SID>Tabops_openWndInNewTab()
 command!  -nargs=? -complete=customlist,<SID>Tabops_openSiblings__complete  TabopsOpenSiblings  :call <SID>Tabops_openSiblings(<q-args>)
 
 
@@ -401,6 +405,19 @@ function! s:Tabops_closeLeft()
     for i in range(tabpagenr() - 1, 1, -1)
         execute 'tabclose! ' . string(i)
     endfor
+    let &lazyredraw = ld
+endfunction
+
+
+function! s:Tabops_openWndInNewTab()
+    if winnr('$') == 1 | return | endif
+    let currbufnr = bufnr('%')
+
+    let ld = &lazyredraw
+    let &lazyredraw = 1
+    close
+    tabedit
+    execute currbufnr . 'buffer'
     let &lazyredraw = ld
 endfunction
 
