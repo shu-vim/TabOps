@@ -83,16 +83,101 @@ augroup Tabops
     autocmd  BufWinLeave * call <SID>Tabops_onBufWinLeave()
 augroup END
 
-command!  TabopsSortByPath       :call <SID>Tabops_sortByPath()
-command!  TabopsSortByBufnr      :call <SID>Tabops_sortByBufnr()
-command!  TabopsSortByLastChange :call <SID>Tabops_sortByLastChange()
-command!  TabopsReopenClosedTab  :call <SID>Tabops_reopenClosedTab()
-command!  TabopsUniq             :call <SID>Tabops_uniq()
-command!  TabopsCloseRight       :call <SID>Tabops_closeRight()
-command!  TabopsCloseLeft        :call <SID>Tabops_closeLeft()
-command!  TabopsOpenWndInNewTab     :call <SID>Tabops_openWndInNewTab()
-command!  -nargs=? -complete=customlist,<SID>Tabops_openSiblings__complete  TabopsOpenSiblings  :call <SID>Tabops_openSiblings(<q-args>)
 
+function! s:Tabops__defineCommandsOnStartup()
+    command!  -nargs=+ -complete=customlist,<SID>Tabops__complete  Tabops  :call <SID>Tabops_execute(<q-args>)
+
+    "command!  TabopsSortByPath       :call <SID>Tabops_sortByPath()
+    "command!  TabopsSortByBufnr      :call <SID>Tabops_sortByBufnr()
+    "command!  TabopsSortByLastChange :call <SID>Tabops_sortByLastChange()
+    "command!  TabopsReopenClosedTab  :call <SID>Tabops_reopenClosedTab()
+    "command!  TabopsUniq             :call <SID>Tabops_uniq()
+    "command!  TabopsCloseRight       :call <SID>Tabops_closeRight()
+    "command!  TabopsCloseLeft        :call <SID>Tabops_closeLeft()
+    "command!  TabopsOpenWndInNewTab  :call <SID>Tabops_openWndInNewTab()
+    "command!  -nargs=? -complete=customlist,<SID>Tabops_openSiblings__complete  TabopsOpenSiblings  :call <SID>Tabops_openSiblings(<q-args>)
+
+    let s:Tabops__commandTree = {
+                \   'Close' : {
+                    \   'Right' : function('s:Tabops_closeRight')
+                    \ , 'Left' : function('s:Tabops_closeLeft')
+                    \ }
+                \ , 'Open' : {
+                    \   'Siblings' : {
+                        \   'LOADED' : function('s:Tabops_openSiblingsLoaded')
+                        \ , ' ' : function('s:Tabops_openSiblingsUnloaded')
+                        \ }
+                    \ , 'WndInNewTab' : function('s:Tabops_openWndInNewTab')
+                    \ }
+                \ , 'Reopen' : function('s:Tabops_reopenClosedTab')
+                \ , 'Sort' : {
+                    \   'ByPath' : function('s:Tabops_sortByPath')
+                    \ , 'ByBufnr' : function('s:Tabops_sortByBufnr')
+                    \ , 'ByLastChange' : function('s:Tabops_sortByLastChange')
+                    \ }
+                \ , 'Uniq' : function('s:Tabops_uniq')
+                \ }
+endfunction
+
+function! s:Tabops__complete(argLead, cmdLine, cursorPos)
+    let args = split(a:cmdLine, '\V\s\+')
+    let p = s:Tabops__commandTree
+    "echom 'args: ' . join(args, ', ')
+    for i in args[1:]
+        if !has_key(p, i) || i ==? a:argLead
+            return sort(filter(keys(p), 'v:val =~? "^' . a:argLead . '"'))
+        endif
+
+        "echom 'p['.i.']:'.string(p[i])
+        if type(p[i]) == type({})
+            let p = p[i]
+        else
+            return []
+        endif
+    endfor
+
+    return sort(keys(p))
+endfunction
+
+function! s:Tabops_execute(arg)
+    let args = split(a:arg, '\V\s\+')
+    let p = s:Tabops__commandTree
+    for i in args
+        if !has_key(p, i)
+            echo 'select command within [' . join(sort(keys(p)), ', ') . ']'
+            return
+        endif
+        "echom 'p['.i.']:'.string(p[i])
+        if type(p[i]) == type({})
+            "echom 'type{}'
+            let p = p[i]
+        else
+            "echom 'type funcref'
+            let Func = p[i]
+            call Func()
+            return
+        endif
+    endfor
+
+    "echom string(p)
+    let defaultKey = ' '
+    if has_key(p, defaultKey) && type(p[defaultKey]) != type({})
+        let Func = p[defaultKey]
+        call Func()
+        return
+    endif
+
+    echo 'select command within [' . join(sort(keys(p)), ', ') . ']'
+endfunction
+
+
+function! s:Tabops_openSiblingsLoaded()
+    return s:Tabops_openSiblings('LOADED')
+endfunction
+
+function! s:Tabops_openSiblingsUnloaded()
+    return s:Tabops_openSiblings('')
+endfunction
 
 function! s:Tabops_openSiblings(arg)
     let ld = &lazyredraw
@@ -481,5 +566,7 @@ function! s:Tabops__swapPrev()
 
     execute 'tabmove ' . string(desttabidx)
 endfunction
+
+call s:Tabops__defineCommandsOnStartup()
 
 " vim: set et ft=vim sts=4 sw=4 ts=4 tw=78 : 
