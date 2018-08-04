@@ -542,27 +542,11 @@ endfunction
 
 
 function! s:Tabops__swapNext()
-    let lasttabidx = tabpagenr('$') - 1
-    let tabidx = tabpagenr() - 1
-    if tabidx == lasttabidx
-        let desttabidx = 0
-    else
-        let desttabidx = tabidx + 1
-    endif
-
-    execute 'tabmove ' . string(desttabidx)
+    execute '+tabmove'
 endfunction
 
 function! s:Tabops__swapPrev()
-    let lasttabidx = tabpagenr('$') - 1
-    let tabidx = tabpagenr() - 1
-    if tabidx == 0
-        let desttabidx = lasttabidx
-    else
-        let desttabidx = tabidx - 1
-    endif
-
-    execute 'tabmove ' . string(desttabidx)
+    execute '-tabmove'
 endfunction
 
 call s:Tabops__defineCommandsOnStartup()
